@@ -190,12 +190,12 @@ footer{padding:26px 0 40px;font-family:var(--mono);font-size:12px;color:#8a93a0;
     <p class="sec-desc">직접 구축·운영 중인 홈랩의 실제 캡처. 컨테이너 8개가 모두 정상 기동 중이며, Grafana 대시보드에서 실시간 리소스를 관제하고 있다.</p>
 
     <figure class="reveal">
-      <img src="assets/docker-containers.png" alt="Docker Desktop에서 8개 컨테이너가 모두 정상 실행 중인 화면">
+      <img src="Assets/docker-containers.png" alt="Docker Desktop에서 8개 컨테이너가 모두 정상 실행 중인 화면">
       <figcaption><b>Docker Desktop — 컨테이너 오케스트레이션.</b> zabbix-lab(5개: agent·web·server·postgres·grafana)과 lb-lab(3개: haproxy·web1·web2)이 Compose로 그룹화되어 전부 초록 상태로 기동 중. 포트 매핑(8080·10051·3000·8082)과 리소스 사용량이 함께 표시된다.</figcaption>
     </figure>
 
     <figure class="reveal">
-      <img src="assets/grafana-dashboard.png" alt="Grafana 대시보드에서 CPU·메모리·스왑·에이전트 가용성을 표시하는 화면">
+      <img src="Assets/grafana-dashboard.png" alt="Grafana 대시보드에서 CPU·메모리·스왑·에이전트 가용성을 표시하는 화면">
       <figcaption><b>Grafana 관제 대시보드.</b> Zabbix 데이터소스를 연동해 CPU 사용률(시계열), 메모리 사용률(게이지), 스왑 공간, Zabbix Agent 가용성을 한 화면에 구성. 임계치 기반 색상(초록→빨강)으로 상태를 직관적으로 표현.</figcaption>
     </figure>
   </div>
