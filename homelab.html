@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home Lab · Docker 통합 모니터링 & 로드밸런싱 | 양승범</title>
+<meta name="description" content="Docker 기반 Zabbix·Grafana 통합 모니터링과 HAproxy 로드밸런싱 홈랩 구축 프로젝트">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1b2733; --ink-soft:#42525f; --paper:#f4f6f8; --panel:#ffffff;
+  --steel:#3e5c76; --steel-deep:#28405a;
+  --ok:#1d8a5a; --ok-bg:#e7f4ee; --part:#b97a1f; --part-bg:#faf1e2;
+  --line:#d8dfe6; --mono:'IBM Plex Mono', ui-monospace, monospace;
+  --sans:'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.7;font-size:16px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto;padding:0 24px}
+a{color:var(--steel);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:3px solid var(--steel);outline-offset:2px;border-radius:2px}
+
+/* status bar */
+.statusbar{background:var(--ink);color:#c9d4de;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+.statusbar .wrap{display:flex;justify-content:space-between;align-items:center;padding:10px 24px;gap:12px;flex-wrap:wrap}
+.statusbar .dot{color:#4ade80;margin-right:6px}
+.statusbar a{color:#8fd4b4}
+
+/* hero */
+header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:56px 0 44px}
+.back{font-family:var(--mono);font-size:13px;color:var(--steel);display:inline-block;margin-bottom:22px}
+.eyebrow{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.14em;color:var(--steel);text-transform:uppercase;display:block;margin-bottom:14px}
+h1.title{font-size:clamp(28px,4.6vw,42px);font-weight:800;letter-spacing:-0.02em;line-height:1.22}
+.hero .sub{font-size:clamp(16px,2.2vw,19px);color:var(--ink-soft);margin-top:12px;font-weight:500;max-width:640px}
+.hero .thesis{margin-top:24px;font-size:clamp(15px,2vw,17px);font-weight:600;color:var(--steel-deep);border-left:4px solid var(--steel);padding-left:16px;max-width:600px;line-height:1.6}
+.stack-badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}
+.sb{font-size:12.5px;font-weight:500;font-family:var(--mono);background:var(--steel-deep);color:#fff;padding:5px 12px;border-radius:100px}
+.sb.alt{background:var(--ok-bg);color:#14603f}
+
+/* metrics */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:36px;border-radius:10px;overflow:hidden}
+.metric{background:var(--panel);padding:18px 20px}
+.metric .k{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--ink)}
+.metric .k em{font-style:normal;color:var(--ok)}
+.metric .v{font-size:12.5px;color:var(--ink-soft);margin-top:3px}
+
+/* sections */
+section{padding:56px 0}
+section+section{border-top:1px solid var(--line)}
+.sec-tag{font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.12em;color:var(--steel);display:block;margin-bottom:10px}
+h2.sec-title{font-size:clamp(22px,3.2vw,28px);font-weight:800;letter-spacing:-0.015em;margin-bottom:12px}
+.sec-desc{color:var(--ink-soft);max-width:640px;margin-bottom:32px}
+h3.blk{font-size:18px;font-weight:800;margin:28px 0 12px}
+
+/* architecture ascii */
+.arch{background:var(--ink);color:#c9d4de;border-radius:12px;padding:26px 28px;font-family:var(--mono);font-size:13px;line-height:1.9;overflow-x:auto;white-space:pre}
+.arch .hi{color:#7fd4b0}
+.arch .amber{color:#f0b866}
+.arch .blue{color:#8ab6e0}
+
+/* screenshot figures */
+figure{margin:0 0 28px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+figure img{width:100%;display:block;border-bottom:1px solid var(--line)}
+figcaption{padding:14px 18px;font-size:14px;color:var(--ink-soft)}
+figcaption b{color:var(--ink);font-weight:600}
+
+/* build list */
+.build{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px 26px;margin-bottom:16px}
+.build h3{font-size:17px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.build h3 .num{font-family:var(--mono);font-size:13px;color:var(--steel);background:var(--ok-bg);padding:3px 9px;border-radius:6px}
+.build ul{list-style:none;font-size:14.5px;color:var(--ink-soft);margin-top:8px}
+.build li{position:relative;padding-left:16px;margin-bottom:5px;line-height:1.6}
+.build li::before{content:"–";position:absolute;left:0;color:var(--steel)}
+
+/* scenario table */
+.tbl{width:100%;border-collapse:collapse;font-size:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tbl th,.tbl td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl th{background:#fafbfc;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--steel);letter-spacing:.05em}
+.tbl tr:last-child td{border-bottom:none}
+.tbl .r{color:#14603f;font-weight:600}
+
+/* troubleshoot */
+.ts-item{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--part);border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:12px}
+.ts-item .p{font-family:var(--mono);font-size:12.5px;color:var(--part);font-weight:600;margin-bottom:5px}
+.ts-item .s{font-size:14.5px;color:var(--ink-soft);line-height:1.6}
+
+/* learnings */
+.learn{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.learn-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px}
+.learn-card .n{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--steel);margin-bottom:8px}
+.learn-card h4{font-size:15.5px;font-weight:800;margin-bottom:8px}
+.learn-card p{font-size:14px;color:var(--ink-soft);line-height:1.6}
+
+/* contact */
+.contact-box{background:var(--ink);color:#dfe7ee;border-radius:14px;padding:36px 34px;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:center}
+.contact-box h2{font-size:22px;font-weight:800;color:#fff;margin-bottom:6px}
+.contact-box p{font-size:14px;color:#aebbc7;max-width:400px}
+.contact-list{font-family:var(--mono);font-size:14px;line-height:2}
+.contact-list a{color:#8fd4b4}
+footer{padding:26px 0 40px;font-family:var(--mono);font-size:12px;color:#8a93a0;text-align:center}
+
+@media (max-width:640px){
+  .contact-box{padding:28px 22px}
+  .arch{font-size:11px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+  .reveal.on{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="statusbar">
+  <div class="wrap">
+    <span><span class="dot">●</span>8 CONTAINERS RUNNING</span>
+    <span>ZABBIX 7.0 · GRAFANA · HAPROXY</span>
+    <span><a href="index.html">← 포트폴리오 홈</a></span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <a class="back" href="index.html">← 메인 포트폴리오로 돌아가기</a>
+    <span class="eyebrow">Personal Home Lab Project</span>
+    <h1 class="title">Docker 기반 통합 모니터링 &amp; 로드밸런싱 홈랩</h1>
+    <p class="sub">Windows PC 한 대 위에 컨테이너 8개로 3계층 인프라를 구축하고, 로드밸런싱된 웹 서비스를 무중단 운영하며 전체를 실시간 감시·자동 알림하는 소규모 운영 환경.</p>
+    <p class="thesis">지원 공고의 우대사항(Zabbix/Grafana, HAproxy 프록시)을 "해본 적 있다"가 아니라 "구축·운영하고 장애까지 검증했다"로 만들기 위한 프로젝트.</p>
+
+    <div class="stack-badges">
+      <span class="sb">Docker Compose (IaC)</span>
+      <span class="sb">Zabbix 7.0</span>
+      <span class="sb">Grafana</span>
+      <span class="sb">HAproxy</span>
+      <span class="sb">PostgreSQL</span>
+      <span class="sb">nginx</span>
+      <span class="sb alt">Telegram Alert</span>
+      <span class="sb alt">WSL2</span>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="k">8</div><div class="v">Compose로 정의·운영한 컨테이너</div></div>
+      <div class="metric"><div class="k">3<em>계층</em></div><div class="v">호스트·서비스·컨테이너 감시</div></div>
+      <div class="metric"><div class="k">0<em>s</em></div><div class="v">백엔드 1대 장애 시 서비스 중단 시간</div></div>
+      <div class="metric"><div class="k">5<em>+</em></div><div class="v">직접 해결한 트러블슈팅 이슈</div></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ARCHITECTURE -->
+<section id="arch">
+  <div class="wrap">
+    <span class="sec-tag">[01] ARCHITECTURE</span>
+    <h2 class="sec-title">아키텍처 개요</h2>
+    <p class="sec-desc">외부 요청은 HAproxy가 받아 nginx 2대로 분산하고, 관제 계층(Zabbix)이 전체를 감시하며 장애 시 Telegram으로 통보한다. 모든 구성은 Docker Compose로 코드화(IaC)되어 있다.</p>
+    <div class="arch reveal">
+<span class="amber">[외부 PC / 스마트폰]</span>
+        │  LAN, :8082
+        ▼
+   ┌──────────────┐
+   │   HAproxy    │  roundrobin + httpchk 헬스체크
+   └──────────────┘
+     │          │
+     ▼          ▼
+ <span class="blue">[nginx web1]</span>  <span class="hi">[nginx web2]</span>   ← 1대 다운 시 무중단 페일오버
+        ▲
+        │ (HTTP / 서비스 감시)
+   ┌────────────────────────────────┐
+   │ <span class="hi">Zabbix 7.0</span> + PostgreSQL        │  수집 · 판단 · 트리거
+   │ <span class="hi">Grafana</span>  (시각화 대시보드)      │  관제 화면
+   │ <span class="amber">Telegram</span> (장애 자동 알림)        │  통보
+   └────────────────────────────────┘
+
+  전체가 Docker host (Windows 11 + WSL2) 위에서
+  <span class="hi">docker compose</span> 로 선언·운영
+    </div>
+  </div>
+</section>
+
+<!-- SCREENSHOTS -->
+<section id="screens">
+  <div class="wrap">
+    <span class="sec-tag">[02] LIVE SCREENS</span>
+    <h2 class="sec-title">실제 구동 화면</h2>
+    <p class="sec-desc">직접 구축·운영 중인 홈랩의 실제 캡처. 컨테이너 8개가 모두 정상 기동 중이며, Grafana 대시보드에서 실시간 리소스를 관제하고 있다.</p>
+
+    <figure class="reveal">
+      <img src="assets/docker-containers.png" alt="Docker Desktop에서 8개 컨테이너가 모두 정상 실행 중인 화면">
+      <figcaption><b>Docker Desktop — 컨테이너 오케스트레이션.</b> zabbix-lab(5개: agent·web·server·postgres·grafana)과 lb-lab(3개: haproxy·web1·web2)이 Compose로 그룹화되어 전부 초록 상태로 기동 중. 포트 매핑(8080·10051·3000·8082)과 리소스 사용량이 함께 표시된다.</figcaption>
+    </figure>
+
+    <figure class="reveal">
+      <img src="assets/grafana-dashboard.png" alt="Grafana 대시보드에서 CPU·메모리·스왑·에이전트 가용성을 표시하는 화면">
+      <figcaption><b>Grafana 관제 대시보드.</b> Zabbix 데이터소스를 연동해 CPU 사용률(시계열), 메모리 사용률(게이지), 스왑 공간, Zabbix Agent 가용성을 한 화면에 구성. 임계치 기반 색상(초록→빨강)으로 상태를 직관적으로 표현.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- BUILD SCOPE -->
+<section id="scope">
+  <div class="wrap">
+    <span class="sec-tag">[03] BUILD SCOPE</span>
+    <h2 class="sec-title">구축 범위</h2>
+    <p class="sec-desc">단순 설치가 아니라, 운영 관점의 감시 체계와 고가용성 구조를 직접 설계·구성했다.</p>
+
+    <div class="build reveal">
+      <h3><span class="num">01</span>컨테이너 기반 인프라 (Docker / IaC)</h3>
+      <ul>
+        <li>Docker Compose로 8개 컨테이너를 선언형(YAML)으로 정의, 명령 한 줄로 전체 스택 재현</li>
+        <li>named volume(데이터 영속성)과 bind mount(설정 주입·개발)를 용도에 맞게 구분 적용</li>
+        <li>서비스 이름 기반 내부 DNS, depends_on 기동 순서, restart 자동복구 정책 활용</li>
+        <li>Dockerfile로 커스텀 이미지 빌드 — 개발용(bind mount)과 배포용(이미지 COPY) 방식 구분 이해</li>
+      </ul>
+    </div>
+
+    <div class="build reveal">
+      <h3><span class="num">02</span>통합 모니터링 (Zabbix + Grafana)</h3>
+      <ul>
+        <li>Zabbix Server 7.0 + PostgreSQL 백엔드, Agent2 기반 호스트 자원 수집</li>
+        <li>3계층 감시 — 호스트(Linux 템플릿) / 서비스(HTTP Up·Down) / 컨테이너(docker.sock + LLD 자동발견)</li>
+        <li>템플릿 없이 아이템·트리거 직접 정의 → 수집 파이프라인(아이템→트리거→액션) 구조 이해</li>
+        <li>Grafana 데이터소스 연동, 임계치 색상·Value Mapping 기반 관제 대시보드 구성</li>
+      </ul>
+    </div>
+
+    <div class="build reveal">
+      <h3><span class="num">03</span>장애 알림 자동화 (Telegram)</h3>
+      <ul>
+        <li>Zabbix Media type + Action으로 장애 발생 → 즉시 통보 → 복구 시 RESOLVED 통보 왕복 구현</li>
+        <li>감지 → 발보 → 해소의 전체 알림 사이클 실측 검증</li>
+      </ul>
+    </div>
+
+    <div class="build reveal">
+      <h3><span class="num">04</span>로드밸런싱 · 고가용성 (HAproxy)</h3>
+      <ul>
+        <li>HAproxy로 nginx 2대 roundrobin 분산, option httpchk 헬스체크로 죽은 백엔드 자동 격리</li>
+        <li>무중단 페일오버 검증 — 백엔드 1대 강제 종료에도 서비스 무중단 유지, 복구 시 자동 풀 복귀</li>
+        <li>stats 페이지로 백엔드 실시간 UP/DOWN 관제</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SCENARIOS -->
+<section id="scenarios">
+  <div class="wrap">
+    <span class="sec-tag">[04] VERIFIED SCENARIOS</span>
+    <h2 class="sec-title">검증한 장애 시나리오</h2>
+    <p class="sec-desc">"구축했다"에서 멈추지 않고, 실제로 장애를 발생시켜 감지·대응·복구가 동작함을 직접 확인했다.</p>
+    <table class="tbl reveal">
+      <thead><tr><th>시나리오</th><th>조치</th><th>결과</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>웹 서비스 다운</td>
+          <td>docker stop web</td>
+          <td class="r">Zabbix 트리거 발동 → Telegram 알림 → 재기동 시 자동 해소</td>
+        </tr>
+        <tr>
+          <td>백엔드 서버 1대 장애</td>
+          <td>docker stop web1</td>
+          <td class="r">HAproxy 헬스체크로 격리, 서비스 무중단 유지, web2만 응답</td>
+        </tr>
+        <tr>
+          <td>컨테이너 상태 변화</td>
+          <td>stop / start</td>
+          <td class="r">LLD 기반 컨테이너 감시로 상태 실시간 반영</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- TROUBLESHOOTING -->
+<section id="troubleshoot">
+  <div class="wrap">
+    <span class="sec-tag">[05] TROUBLESHOOTING LOG</span>
+    <h2 class="sec-title">직접 해결한 문제들</h2>
+    <p class="sec-desc">구축 과정에서 마주친 문제를 상류→하류로 원인을 좁혀가며 해결했다. 인프라 운영에서의 로그·세션 기반 장애 분석과 동일한 접근을 적용했다.</p>
+
+    <div class="ts-item reveal">
+      <div class="p">HW · BIOS 가상화(VT-x/SVM) 비활성</div>
+      <div class="s">하드웨어 설정부터 WSL2·Docker까지 바닥부터 환경을 구성. 작업 관리자 가상화 상태 확인 → BIOS 진입 → CPU 가상화 활성화.</div>
+    </div>
+    <div class="ts-item reveal">
+      <div class="p">HAproxy 재시작 무한루프</div>
+      <div class="s">로그에서 "Missing LF on last line" 확인, POSIX 개행 규칙에 따른 설정 파일 문제로 특정하여 해결. restart 정책이 설정 오류 앞에서 무한 재시작을 만든다는 점을 체감.</div>
+    </div>
+    <div class="ts-item reveal">
+      <div class="p">Zabbix Simple check 아이템 수집 실패</div>
+      <div class="s">에러 메시지("must have IP parameter or host interface specified")를 근거로 키 파라미터에 대상 주소를 직접 지정하여 해결.</div>
+    </div>
+    <div class="ts-item reveal">
+      <div class="p">Grafana에서 호스트 미표시</div>
+      <div class="s">호스트 그룹 소속 불일치가 원인임을 특정, 그룹 통일로 해결. "필터 문제와 데이터 문제의 구분"이라는 진단 원칙을 적용.</div>
+    </div>
+    <div class="ts-item reveal">
+      <div class="p">대시보드 상태 오표시</div>
+      <div class="s">아이템별 값 정의(0/1의 의미)가 서로 다름을 확인, State running 아이템에만 UP/DOWN 매핑을 적용. 지표의 의미를 검증하지 않으면 대시보드가 잘못된 정보를 줄 수 있음을 학습.</div>
+    </div>
+  </div>
+</section>
+
+<!-- LEARNINGS -->
+<section id="learn">
+  <div class="wrap">
+    <span class="sec-tag">[06] KEY TAKEAWAYS</span>
+    <h2 class="sec-title">배운 점</h2>
+    <div class="learn">
+      <div class="learn-card reveal">
+        <div class="n">01</div>
+        <h4>인프라는 코드다 (IaC)</h4>
+        <p>절차가 아닌 선언으로 인프라를 관리하면 재현성과 변경 이력이 확보된다. 기존 방화벽 변경관리(요청–검토–적용–검증–기록)와 같은 원리를 코드로 수행하는 것.</p>
+      </div>
+      <div class="learn-card reveal">
+        <div class="n">02</div>
+        <h4>감시는 계층으로 나뉜다</h4>
+        <p>서버가 살아있어도 서비스는 죽을 수 있다. 호스트·서비스·컨테이너를 각각 다른 관점으로 감시해야 사각지대가 없어진다.</p>
+      </div>
+      <div class="learn-card reveal">
+        <div class="n">03</div>
+        <h4>자동 복구는 만능이 아니다</h4>
+        <p>restart 정책은 장애를 복구하지만 설정 오류 앞에서는 무한 재시작 루프를 만든다. 자동화에도 관찰이 필요하다.</p>
+      </div>
+      <div class="learn-card reveal">
+        <div class="n">04</div>
+        <h4>대시보드는 거짓말할 수 있다</h4>
+        <p>지표의 값 정의를 확인하지 않으면 살아있는 서버가 DOWN으로 표시되는 잘못된 관제 화면이 만들어진다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="wrap">
+    <div class="contact-box reveal">
+      <div>
+        <h2>이 프로젝트에 대해 더 이야기하고 싶습니다</h2>
+        <p>구축 과정의 상세 문서, Compose 설정, 추가 트러블슈팅 기록을 공유할 수 있습니다.</p>
+      </div>
+      <div class="contact-list">
+        EMAIL&nbsp;&nbsp;<a href="mailto:didtmdqja47@naver.com">didtmdqja47@naver.com</a><br>
+        HOME&nbsp;&nbsp;&nbsp;<a href="index.html">← 메인 포트폴리오</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>© 2026 YANG SEUNG BEOM · HOME LAB PROJECT · DOCKER · ZABBIX · GRAFANA · HAPROXY</footer>
+
+<script>
+(function(){
+  if(!('IntersectionObserver' in window)) return;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('on'); io.unobserve(e.target);} });
+  },{threshold:.1});
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+})();
+</script>
+</body>
+</html>
